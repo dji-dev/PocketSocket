@@ -38,6 +38,10 @@ typedef NS_ENUM(NSInteger, PSWebSocketReadyState) {
 - (void)webSocketDidFlushInput:(PSWebSocket *)webSocket;
 - (void)webSocketDidFlushOutput:(PSWebSocket *)webSocket;
 - (BOOL)webSocket:(PSWebSocket *)webSocket evaluateServerTrust:(SecTrustRef)trust;
+
+//START DJI Additions
+- (void) webSocket: (PSWebSocket *)webSocket didReceivePing: (NSData*) ping;
+//END
 @end
 
 /**
@@ -115,6 +119,13 @@ typedef NS_ENUM(NSInteger, PSWebSocketReadyState) {
  */
 - (void)ping:(NSData *)pingData handler:(void (^)(NSData *pongData))handler;
 
+//START DJI Additions
+/**
+ * Send a pong over the websocket
+ *  @param pong data to include with the pong
+ */
+- (void) sendPong: (NSData*) pong;
+//END
 
 /**
  *  Close the websocket will default to code 1000 and nil reason

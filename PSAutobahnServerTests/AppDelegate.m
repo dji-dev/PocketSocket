@@ -33,7 +33,7 @@
 - (void)serverDidStart:(PSWebSocketServer *)server {
 }
 - (void)server:(PSWebSocketServer *)server didFailWithError:(NSError *)error {
-    [NSException raise:NSInternalInconsistencyException format:error.localizedDescription];
+    [NSException raise:NSInternalInconsistencyException format:@"%@", error.localizedDescription];
 }
 - (void)serverDidStop:(PSWebSocketServer *)server {
     [NSException raise:NSInternalInconsistencyException format:@"Server stopped unexpected."];
@@ -50,6 +50,10 @@
 }
 - (void)server:(PSWebSocketServer *)server webSocket:(PSWebSocket *)webSocket didCloseWithCode:(NSInteger)code reason:(NSString *)reason wasClean:(BOOL)wasClean {
     
+}
+-(void)server:(PSWebSocketServer *)server webSocket:(PSWebSocket *)webSocket didReceivePing:(NSData *)ping {
+    NSLog(@"Received Ping: %@", [[NSString alloc] initWithData:ping encoding:NSASCIIStringEncoding]);
+    [webSocket sendPong:[@"Pong Received!" dataUsingEncoding:NSUTF8StringEncoding]];
 }
 
 @end

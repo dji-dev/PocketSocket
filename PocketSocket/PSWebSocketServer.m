@@ -327,6 +327,9 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 - (void)webSocketDidFlushOutput:(PSWebSocket *)webSocket {
     [self notifyDelegateWebSocketDidFlushOutput:webSocket];
 }
+-(void)webSocket:(PSWebSocket *)webSocket didReceivePing:(NSData *)ping {
+    [self notifyDelegateDidReceivePing:ping socket:webSocket];
+}
 
 #pragma mark - Connections
 
@@ -658,6 +661,16 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
     *outResponse = response;
     return accept;
 }
+
+//START DJI Additions
+- (void)notifyDelegateDidReceivePing:(NSData *)ping socket: (PSWebSocket *)webSocket {
+    [self executeDelegate:^{
+        if ([_delegate respondsToSelector:@selector(server:webSocket:didReceivePing:)]) {
+            [_delegate server:self webSocket:webSocket didReceivePing:ping];
+        }
+    }];
+}
+//END
 
 #pragma mark - Queueing
 

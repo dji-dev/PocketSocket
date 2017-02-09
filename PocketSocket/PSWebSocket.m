@@ -247,6 +247,12 @@
         [_driver sendPing:pingData];
     }];
 }
+- (void)sendPong:(NSData *)pong {
+    [self executeWork:^{
+        [_driver sendPong:pong];
+    }];
+    
+}
 - (void)close {
     [self closeWithCode:1000 reason:nil];
 }
@@ -548,11 +554,7 @@
     [self notifyDelegateDidReceiveMessage:message];
 }
 - (void)driver:(PSWebSocketDriver *)driver didReceivePing:(NSData *)ping {
-    [self executeDelegate:^{
-        [self executeWork:^{
-            [driver sendPong:ping];
-        }];
-    }];
+    [self notifyDelegateDidReceivePing:ping driver: driver];
 }
 - (void)driver:(PSWebSocketDriver *)driver didReceivePong:(NSData *)pong {
     void (^handler)(NSData *pong) = [_pingHandlers firstObject];
@@ -666,6 +668,21 @@
         }
     }];
 }
+//START DJI Additions
+- (void)notifyDelegateDidReceivePing:(NSData *)ping driver: (PSWebSocketDriver*) driver {
+    [self executeDelegate:^{
+        if ([_delegate respondsToSelector:@selector(webSocket:didReceivePing:)]) {
+            [_delegate webSocket:self didReceivePing:ping];
+        }
+        else {
+            [self executeWork:^{
+                [driver sendPong:ping];
+            }];
+        }
+    }];
+}
+//END
+
 - (BOOL)askDelegateToEvaluateServerTrust:(SecTrustRef)trust {
     __block BOOL result = NO;
     [self executeDelegateAndWait:^{

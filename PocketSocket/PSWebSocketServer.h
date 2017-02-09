@@ -35,6 +35,10 @@
 - (void)server:(PSWebSocketServer *)server webSocketDidFlushOutput:(PSWebSocket *)webSocket;
 - (BOOL)server:(PSWebSocketServer *)server acceptWebSocketWithRequest:(NSURLRequest *)request;
 - (BOOL)server:(PSWebSocketServer *)server acceptWebSocketWithRequest:(NSURLRequest *)request address:(NSData *)address trust:(SecTrustRef)trust response:(NSHTTPURLResponse **)response;
+
+//START DJI Additions
+- (void)server:(PSWebSocketServer *)server webSocket:(PSWebSocket *)webSocket didReceivePing: (NSData*) ping;
+//END
 @end
 
 @interface PSWebSocketServer : NSObject
