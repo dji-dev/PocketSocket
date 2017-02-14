@@ -160,4 +160,8 @@ typedef NS_ENUM(NSInteger, PSWebSocketReadyState) {
  */
 - (void)setStreamProperty:(CFTypeRef)property forKey:(NSString *)key;
 
+
+//START DJI Change
+- (NSString* )remoteHost;
+//END DJI Change
 @end

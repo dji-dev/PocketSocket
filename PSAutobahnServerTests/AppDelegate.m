@@ -40,7 +40,7 @@
 }
 
 - (void)server:(PSWebSocketServer *)server webSocketDidOpen:(PSWebSocket *)webSocket {
-    
+    NSLog(@"Address: %@", webSocket.remoteHost);
 }
 - (void)server:(PSWebSocketServer *)server webSocket:(PSWebSocket *)webSocket didReceiveMessage:(id)message {
     [webSocket send:message];

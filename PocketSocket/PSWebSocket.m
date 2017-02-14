@@ -68,7 +68,9 @@
 }
 
 - (NSString* )remoteHost {
-    return PSPeerHostOfInputStream(_inputStream);
+    
+    NSString * remoteHostURLString = PSPeerHostOfInputStream(_inputStream);
+    return [[NSURL alloc] initWithString:[NSString stringWithFormat:@"ws://%@", remoteHostURLString]].host;
 }
 
 @synthesize inputPaused = _inputPaused, outputPaused = _outputPaused;
