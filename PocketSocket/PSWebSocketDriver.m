@@ -82,13 +82,10 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
 
 + (BOOL)isWebSocketRequest:(NSURLRequest *)request {
     NSDictionary *headers = request.allHTTPHeaderFields;
-    
-    NSOrderedSet *version = PSHTTPHeaderFieldValues([headers[@"Sec-WebSocket-Version"] lowercaseString]);
     NSOrderedSet *upgrade = PSHTTPHeaderFieldValues([headers[@"Upgrade"] lowercaseString]);
     NSOrderedSet *connection = PSHTTPHeaderFieldValues([headers[@"Connection"] lowercaseString]);
     
     if(headers[@"Sec-WebSocket-Key"] &&
-       [version containsObject:@"13"] &&
        [connection containsObject:@"upgrade"] &&
        [upgrade containsObject:@"websocket"] &&
        [request.HTTPMethod.lowercaseString isEqualToString:@"get"] &&
@@ -219,7 +216,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Host"), (__bridge CFStringRef)host);
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Connection"), CFSTR("upgrade"));
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Upgrade"), CFSTR("websocket"));
-    CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Version"), CFSTR("13"));
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Key"), (__bridge CFStringRef)_handshakeSecKey);
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Origin"), (__bridge CFStringRef)origin);
     
@@ -463,12 +459,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             // validate accept
             if(![headers[@"Sec-WebSocket-Accept"] isEqualToString:[self acceptHeaderForKey:_handshakeSecKey]]) {
                 PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Invalid Sec-WebSocket-Accept");
-                return -1;
-            }
-            
-            // validate version
-            if(headers[@"Sec-WebSocket-Version"] && ![headers[@"Sec-WebSocket-Version"] isEqualToString:@"13"]) {
-                PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Invalid Sec-WebSocket-Version");
                 return -1;
             }
             
