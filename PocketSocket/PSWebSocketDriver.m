@@ -74,6 +74,8 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     
     uint32_t _utf8DecoderState;
     uint32_t _utf8DecoderCodePoint;
+    
+    BOOL _isWSV8;
 }
 @end
 @implementation PSWebSocketDriver
@@ -87,8 +89,10 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     NSOrderedSet *upgrade = PSHTTPHeaderFieldValues([headers[@"Upgrade"] lowercaseString]);
     NSOrderedSet *connection = PSHTTPHeaderFieldValues([headers[@"Connection"] lowercaseString]);
     
+    bool versionIsSupported = [version containsObject:@"13"] || [version containsObject:@"8"];
+    
     if(headers[@"Sec-WebSocket-Key"] &&
-       [version containsObject:@"13"] &&
+       versionIsSupported &&
        [connection containsObject:@"upgrade"] &&
        [upgrade containsObject:@"websocket"] &&
        [request.HTTPMethod.lowercaseString isEqualToString:@"get"] &&
@@ -219,7 +223,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Host"), (__bridge CFStringRef)host);
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Connection"), CFSTR("upgrade"));
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Upgrade"), CFSTR("websocket"));
-    CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Version"), CFSTR("13"));
+    CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Version"), CFSTR("13, 8"));
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Key"), (__bridge CFStringRef)_handshakeSecKey);
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Origin"), (__bridge CFStringRef)origin);
     
@@ -467,9 +471,15 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             }
             
             // validate version
-            if(headers[@"Sec-WebSocket-Version"] && ![headers[@"Sec-WebSocket-Version"] isEqualToString:@"13"]) {
-                PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Invalid Sec-WebSocket-Version");
-                return -1;
+            if (headers[@"Sec-WebSocket-Version"]){
+                bool versionIs13 = [headers[@"Sec-WebSocket-Version"] isEqualToString:@"13"];
+                bool versionIs8 = [headers[@"Sec-WebSocket-Version"] isEqualToString:@"8"];
+                _isWSV8 = versionIs8;
+                NSLog(@"_isWSV8: %@", @(_isWSV8));
+                if(!versionIs8 && !versionIs13) {
+                    PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Invalid Sec-WebSocket-Version");
+                    return -1;
+                }
             }
             
             // validate protocol
