@@ -485,6 +485,7 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 
             // create webSocket
             PSWebSocket *webSocket = [PSWebSocket serverSocketWithRequest:request inputStream:connection.inputStream outputStream:connection.outputStream];
+            [self notifyDelegateDidSetProtocolVersion:[[self class] getWebSocketVersion:request]];
             webSocket.delegateQueue = _workQueue;
             
             // attach webSocket
@@ -498,6 +499,19 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
         }
     }
 }
+
++ (int)getWebSocketVersion:(NSURLRequest *)request {
+    NSDictionary *headers = request.allHTTPHeaderFields;
+    NSOrderedSet *version = PSHTTPHeaderFieldValues([headers[@"Sec-WebSocket-Version"] lowercaseString]);
+    if ([version containsObject:@"13"]){
+        return 13;
+    }
+    if ([version containsObject:@"8"]){
+        return 8;
+    }
+    return -1;
+}
+
 - (void)pumpOutput {
     for(PSWebSocketServerConnection *connection in _connections.allObjects) {
         if(connection.readyState != PSWebSocketServerConnectionReadyStateOpen &&
@@ -633,6 +647,13 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
         }
     }];
 }
+
+- (void)notifyDelegateDidSetProtocolVersion:(int) version{
+    if ([_delegate respondsToSelector: @selector(server:didSetProtocolVersion:)]){
+        [_delegate server:self didSetProtocolVersion:version];
+    }
+}
+
 - (BOOL)askDelegateShouldAcceptConnection:(PSWebSocketServerConnection *)connection
                                   request: (NSURLRequest *)request
                                  response:(NSHTTPURLResponse **)outResponse {

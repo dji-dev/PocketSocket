@@ -38,6 +38,7 @@
 
 //START DJI Additions
 - (void)server:(PSWebSocketServer *)server webSocket:(PSWebSocket *)webSocket didReceivePing: (NSData*) ping;
+- (void)server:(PSWebSocketServer *)server didSetProtocolVersion:(int) version;
 //END
 @end
 
