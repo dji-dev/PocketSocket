@@ -138,7 +138,7 @@ static inline NSString* PSPeerHostOfInputStream(NSInputStream *stream) {
     return [NSString stringWithFormat: @"%s:%hu", nameBuf, ntohs(addr->sin_port)];
 }
 
-static inline int getWebSocketVersion:(NSURLRequest *request) {
+static inline int getWebSocketVersion(NSURLRequest *request) {
     NSDictionary *headers = request.allHTTPHeaderFields;
     NSOrderedSet *version = PSHTTPHeaderFieldValues([headers[@"Sec-WebSocket-Version"] lowercaseString]);
     if ([version containsObject:@"13"]){
