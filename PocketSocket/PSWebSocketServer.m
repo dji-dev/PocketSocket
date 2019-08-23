@@ -485,7 +485,7 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 
             // create webSocket
             PSWebSocket *webSocket = [PSWebSocket serverSocketWithRequest:request inputStream:connection.inputStream outputStream:connection.outputStream];
-            [self notifyDelegateDidSetProtocolVersion:[[self class] getWebSocketVersion:request]];
+            [self notifyDelegateDidSetProtocolVersion:PSGetWebSocketVersion(request)];
             webSocket.delegateQueue = _workQueue;
             
             // attach webSocket
@@ -500,17 +500,6 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
     }
 }
 
-+ (int)getWebSocketVersion:(NSURLRequest *)request {
-    NSDictionary *headers = request.allHTTPHeaderFields;
-    NSOrderedSet *version = PSHTTPHeaderFieldValues([headers[@"Sec-WebSocket-Version"] lowercaseString]);
-    if ([version containsObject:@"13"]){
-        return 13;
-    }
-    if ([version containsObject:@"8"]){
-        return 8;
-    }
-    return -1;
-}
 
 - (void)pumpOutput {
     for(PSWebSocketServerConnection *connection in _connections.allObjects) {

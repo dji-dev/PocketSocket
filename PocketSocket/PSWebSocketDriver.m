@@ -102,18 +102,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     return NO;
 }
 
-+ (int)getWebSocketVersion:(NSURLRequest *)request {
-    NSDictionary *headers = request.allHTTPHeaderFields;
-    NSOrderedSet *version = PSHTTPHeaderFieldValues([headers[@"Sec-WebSocket-Version"] lowercaseString]);
-    if ([version containsObject:@"13"]){
-        return 13;
-    }
-    if ([version containsObject:@"8"]){
-        return 8;
-    }
-    return -1;
-}
-
 #pragma mark - Initialization
 
 + (instancetype)clientDriverWithRequest:(NSURLRequest *)request {
@@ -134,7 +122,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
         _pmdEnabled = YES;
         _pmdClientWindowBits = -11;
         _pmdServerWindowBits = -11;
-        _isWSV8 = [[self class] getWebSocketVersion:_request] == 8;
+        _isWSV8 = PSGetWebSocketVersion(_request) == 8;
     }
     return self;
 }
