@@ -69,13 +69,15 @@ static inline BOOL PSWebSocketOpCodeIsValid(PSWebSocketOpCode opcode) {
 };
 
 
-static inline BOOL PSWebSocketCloseCodeIsValid(NSInteger closeCode) {
+static inline BOOL PSWebSocketCloseCodeIsValid(NSInteger closeCode, BOOL isVersion8) {
     if(closeCode < 1000) {
         return NO;
     }
     if(closeCode >= 1000 && closeCode <= 1011) {
-        if(closeCode == 1004 ||
-           closeCode == 1005 ||
+        if (closeCode == 1004 && !isVersion8){
+            return NO;
+        }
+        if(closeCode == 1005 ||
            closeCode == 1006) {
             return NO;
         }
@@ -134,4 +136,16 @@ static inline NSString* PSPeerHostOfInputStream(NSInputStream *stream) {
         return nil;
     }
     return [NSString stringWithFormat: @"%s:%hu", nameBuf, ntohs(addr->sin_port)];
+}
+
+static inline int PSGetWebSocketVersion(NSURLRequest *request) {
+    NSDictionary *headers = request.allHTTPHeaderFields;
+    NSOrderedSet *version = PSHTTPHeaderFieldValues([headers[@"Sec-WebSocket-Version"] lowercaseString]);
+    if ([version containsObject:@"13"]){
+        return 13;
+    }
+    if ([version containsObject:@"8"]){
+        return 8;
+    }
+    return -1;
 }

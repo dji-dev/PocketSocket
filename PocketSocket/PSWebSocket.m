@@ -571,6 +571,9 @@
     if(_closeWhenFinishedOutput) {
         return;
     }
+    if (_outputBuffer.data.length > 20000000){
+        [_outputBuffer reset];
+    }
     [_outputBuffer appendData:data];
     [self pumpOutput];
 }

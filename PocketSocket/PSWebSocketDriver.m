@@ -74,6 +74,8 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     
     uint32_t _utf8DecoderState;
     uint32_t _utf8DecoderCodePoint;
+    
+    BOOL _isWSV8;
 }
 @end
 @implementation PSWebSocketDriver
@@ -87,8 +89,10 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     NSOrderedSet *upgrade = PSHTTPHeaderFieldValues([headers[@"Upgrade"] lowercaseString]);
     NSOrderedSet *connection = PSHTTPHeaderFieldValues([headers[@"Connection"] lowercaseString]);
     
+    bool versionIsSupported = [version containsObject:@"13"] || [version containsObject:@"8"];
+    
     if(headers[@"Sec-WebSocket-Key"] &&
-       [version containsObject:@"13"] &&
+       versionIsSupported &&
        [connection containsObject:@"upgrade"] &&
        [upgrade containsObject:@"websocket"] &&
        [request.HTTPMethod.lowercaseString isEqualToString:@"get"] &&
@@ -118,6 +122,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
         _pmdEnabled = YES;
         _pmdClientWindowBits = -11;
         _pmdServerWindowBits = -11;
+        _isWSV8 = PSGetWebSocketVersion(_request) == 8;
     }
     return self;
 }
@@ -252,20 +257,17 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     
     // get headers
     NSDictionary *headers = _request.allHTTPHeaderFields;
-    
     // validate is websocket
     if(![[self class] isWebSocketRequest:_request]) {
         [self failWithErrorCode:-1 reason:@"Invalid websocket request"];
         return;
     }
-    
     // validate extensions
     NSOrderedSet *extensionComponents = PSHTTPHeaderFieldValues([headers[@"Sec-WebSocket-Extensions"] lowercaseString]);
     if(![self pmdConfigureWithExtensionsHeaderComponents:extensionComponents]) {
         [self failWithErrorCode:PSWebSocketErrorCodeHandshakeFailed reason:@"invalid permessage-deflate extension parameters"];
         return;
     }
-    
     // set key
     _handshakeSecKey = headers[@"Sec-WebSocket-Key"];
     
@@ -275,7 +277,11 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Upgrade"), CFSTR("websocket"));
     CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Accept"), (__bridge CFStringRef)[self acceptHeaderForKey:_handshakeSecKey]);
     if (_protocol) {
-        CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Protocol"), (__bridge CFStringRef)_protocol);
+        if (_isWSV8){
+            CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Origin"), (__bridge CFStringRef)_protocol);
+        }else{
+            CFHTTPMessageSetHeaderFieldValue(msg, CFSTR("Sec-WebSocket-Protocol"), (__bridge CFStringRef)_protocol);
+        }
     }
     
     NSMutableArray *negotiatedExtensionComponents = [NSMutableArray array];
@@ -419,7 +425,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
                 return 0;
             }
             NSUInteger preBoundaryLength = boundary + 4 - bytes;
-            
             // create handshake
             CFHTTPMessageRef msg = CFHTTPMessageCreateEmpty(NULL, NO);
             if (!CFHTTPMessageAppendBytes(msg, (const UInt8 *)bytes, preBoundaryLength)) {
@@ -427,7 +432,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
                 CFRelease(msg);
                 return -1;
             }
-            
             // validate complete
             if(!CFHTTPMessageIsHeaderComplete(msg)) {
                 PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"HTTP headers found CRLFCRLF but not complete");
@@ -439,7 +443,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             NSInteger statusCode = CFHTTPMessageGetResponseStatusCode(msg);
             NSDictionary *headers = [CFBridgingRelease(CFHTTPMessageCopyAllHeaderFields(msg)) copy];
             CFAutorelease(msg);
-            
             // validate status
             if(statusCode != 101) {
                 if(outError) {
@@ -459,7 +462,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
                 }
                 return - 1;
             }
-            
             // validate accept
             if(![headers[@"Sec-WebSocket-Accept"] isEqualToString:[self acceptHeaderForKey:_handshakeSecKey]]) {
                 PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Invalid Sec-WebSocket-Accept");
@@ -467,13 +469,21 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             }
             
             // validate version
-            if(headers[@"Sec-WebSocket-Version"] && ![headers[@"Sec-WebSocket-Version"] isEqualToString:@"13"]) {
-                PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Invalid Sec-WebSocket-Version");
-                return -1;
+            if (headers[@"Sec-WebSocket-Version"]){
+                bool versionIs13 = [headers[@"Sec-WebSocket-Version"] isEqualToString:@"13"];
+                bool versionIs8 = [headers[@"Sec-WebSocket-Version"] isEqualToString:@"8"];
+                if(!versionIs8 && !versionIs13) {
+                    PSWebSocketSetOutError(outError, PSWebSocketErrorCodeHandshakeFailed, @"Invalid Sec-WebSocket-Version");
+                    return -1;
+                }
             }
             
             // validate protocol
-            _protocol = headers[@"Sec-WebSocket-Protocol"];
+            if (_isWSV8){
+                _protocol = headers[@"Sec-WebSocket-Origin"];
+            }else{
+                _protocol = headers[@"Sec-WebSocket-Protocol"];
+            }
             NSString* protocolRequest = _request.allHTTPHeaderFields[@"Sec-WebSocket-Protocol"];
             if (protocolRequest) {
                 NSArray *protocolComponents = [protocolRequest componentsSeparatedByString:@" "];
@@ -803,7 +813,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
                 uint16_t closeCode = 0;
                 [frame->buffer getBytes:&closeCode length:sizeof(closeCode)];
                 closeCode = EndianU16_BtoN(closeCode);
-                if(!PSWebSocketCloseCodeIsValid(closeCode)) {
+                if(!PSWebSocketCloseCodeIsValid(closeCode, _isWSV8)) {
                     PSWebSocketSetOutError(outError, PSWebSocketStatusCodeProtocolError, @"Invalid close code");
                     return NO;
                 }
@@ -841,7 +851,7 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
             @"Going Away",
             @"Protocol Error",
             @"Unhandled Type",
-            nil,// 1004 reserved
+            @"Message Too Big WSv8"//nil,// 1004 reserved
             @"No Status Received",
             nil,// 1006 reserved
             @"Invalid UTF-8",
@@ -897,7 +907,6 @@ typedef NS_ENUM(NSInteger, PSWebSocketDriverState) {
     for(NSString *component in components) {
         // split to key & value
         NSArray *subcomponents = [component componentsSeparatedByString:@"="];
-        
         if([subcomponents[0] isEqualToString:@"permessage-deflate"]) {
             _pmdEnabled = YES;
         } else if([subcomponents[0] isEqualToString:@"client_max_window_bits"] && subcomponents.count > 1) {

@@ -13,7 +13,7 @@
 //  limitations under the License.
 
 #import "PSWebSocketServer.h"
-#import "PSwebSocket.h"
+#import "PSWebSocket.h"
 #import "PSWebSocketDriver.h"
 #import "PSWebSocketInternal.h"
 #import "PSWebSocketBuffer.h"
@@ -485,6 +485,7 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
 
             // create webSocket
             PSWebSocket *webSocket = [PSWebSocket serverSocketWithRequest:request inputStream:connection.inputStream outputStream:connection.outputStream];
+            [self notifyDelegateDidSetProtocolVersion:PSGetWebSocketVersion(request)];
             webSocket.delegateQueue = _workQueue;
             
             // attach webSocket
@@ -498,6 +499,8 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
         }
     }
 }
+
+
 - (void)pumpOutput {
     for(PSWebSocketServerConnection *connection in _connections.allObjects) {
         if(connection.readyState != PSWebSocketServerConnectionReadyStateOpen &&
@@ -633,6 +636,13 @@ void PSWebSocketServerAcceptCallback(CFSocketRef s, CFSocketCallBackType type, C
         }
     }];
 }
+
+- (void)notifyDelegateDidSetProtocolVersion:(int) version{
+    if ([_delegate respondsToSelector: @selector(server:didSetProtocolVersion:)]){
+        [_delegate server:self didSetProtocolVersion:version];
+    }
+}
+
 - (BOOL)askDelegateShouldAcceptConnection:(PSWebSocketServerConnection *)connection
                                   request: (NSURLRequest *)request
                                  response:(NSHTTPURLResponse **)outResponse {
